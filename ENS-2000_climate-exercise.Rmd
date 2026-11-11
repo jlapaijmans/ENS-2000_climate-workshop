@@ -1,0 +1,374 @@
+---
+title: "Exploring climate at specific locations with R"
+author: "Student practical"
+date: ""
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+---
+<style>
+/* R code background */
+pre.r {
+  background-color: #C1E0F5 !important;
+}
+
+/* R output background */
+pre:not(.r) {
+  background-color: transparent !important;
+}
+
+/* Change colour of comments in R code */
+.hljs-comment {
+  color: #008000 !important;
+}
+</style>
+
+# Introduction
+
+In this practical, you will extract climate information from a dataset of coordinates. You will map your sample locations, look at the climate values associated with them, compare two groups, and carry out a statistical test.
+
+NOTE: This practical is designed to work on the web version of Rstudio on rstudio.bangor.ac.uk. If you feel strongly about running it locally, you will need to install the `pastclim` package and its dependencies. 
+
+## Choose a scenario
+
+The same R workflow can be used for all three scenarios. Full worksheets are available on Blackboard.
+
+**Forestry: comparing plantation types**
+A forestry organisation is comparing the climatic conditions of its timber-producing forests in northern and southern Europe to understand how forestry practices need to adapt to different environments, particularly in the face of future climate change. They want to know whether the plantation in the north experience a different average yearly precipitation than the plantations in the south. Compare locations of their plantations in Northern Europe with locations in Southern Europe using **BIO12 (annual precipitation)**. 
+
+**Zoology: comparing two animal species**  
+In Europe, there are two species of grass snake: - the common grass snake (*Natrix natrix*), which is found in Eastern part of Europe, and the barred grass snake (*Natrix helvetica*), which is found in the western part of Europe. A zoologist wants to know whether these two animal species are recorded in places with different annual mean temperatures. Compare the groups using **BIO1 (annual mean temperature)**.
+
+**Geography and conservation: protected and unprotected places**  
+A conservation team wants to know whether the protected areas in Europe are a good representation of the general climate in Europe. Ideally, protected areas should be representative of the total climate in Europe, so that we capture the full range of conditions that species experience. Compare a selection of locations in European protected areas, with a random selection of unprotected areas to see if there is a difference in climate, specifically in terms of precipitation **BIO12 (annual precipitation)**
+
+
+## Learning aims
+
+By the end of the practical, you should be able to:
+
+- read a table containing latitude and longitude;
+- map geographical coordinates on a map of Europe;
+- extract climate values for each location;
+- carry out and interpret a statistical test;
+- make a plot to compare the two groups
+
+
+# Set up R
+
+When you start R, you will need to load a few libraries. This will allow you to use the functions in `pastclim` and to plot maps. You only need to do this once per R session:
+
+
+```{r setup, message=FALSE, warning=FALSE}
+# Load the packages
+library(pastclim)
+library(terra)
+library(maps)
+```
+
+
+# Load and inspect the sample coordinates
+
+The coordinate file contains one row per sample. It has four columns:
+
+| Column | Meaning |
+|---|---|
+| `sample` | A unique sample number |
+| `lat` | Latitude in decimal degrees |
+| `lon` | Longitude in decimal degrees |
+| `group` | The group to which the sample belongs (A or B in the practice file, but will be different in your file) |
+
+## Read the CSV file
+
+This code is written using an example dataset `practice_samples.csv`. You need to download your chosen dataset from Blackboard and use the same code to read it into R. Remember to change the name of your input files, and the names of the groups (`A` and `B` in this example). Make sure that the CSV file is in your working directory (check with `getwd()` and change with `setwd()`).
+
+<!--
+#samples <- read.csv("nordic_vs_mediterranean_forestry_coordinates.csv")
+#samples <- read.csv("grass_snake_coordinates.csv")
+#samples <- read.csv("europe_protected_areas_vs_rest_europe.csv")
+-->
+
+```{r read-coordinates}
+
+# Read the CSV file into R by typing the following command:
+samples <- read.csv("practice_samples.csv")
+
+# Look at the first rows
+head(samples)
+
+# Check the number of rows (= number of samples)
+nrow(samples)
+
+```
+
+**Questions**
+
+1. How many sample locations are there?
+2. What are the names of the columns?
+3. How many samples are in each group (hint: try `sum(samples$group == "A")`)?
+
+
+# Map the sample locations
+
+A map helps us check where the sample locations are and whether the two groups are geographically separated.
+
+First, we extract the two groups into separate data frames so that we can plot each using different colours. Then we can plot the sample locations on a map of Europe. Remember to change the label A and B to the names of your groups.
+
+```{r map-coordinates, fig.width=8, fig.height=6}
+
+# first extract the two groups into separate data frames
+# REMEMBER TO CHANGE THE LABELS A AND B TO THE NAMES OF YOUR GROUPS
+samples_A <- subset(samples, group == "A")
+samples_B <- subset(samples, group == "B")
+
+
+# plot the map first
+# The xlim and ylim arguments crop the map to the area of interest (in this case, Europe)
+map("world", xlim = c(-15, 55), ylim = c(30, 70))
+
+# add sample locations for group A
+points(samples_A$lon, samples_A$lat, pch = 19, col = "tomato")
+
+# add sample locations for group B
+points(samples_B$lon, samples_B$lat, pch = 17, col = "dodgerblue")
+
+# Remember to change the labels A and B to the names of your groups
+legend("bottomleft", legend = c("A", "B"), pch = 19, col = c("tomato", "dodgerblue"), title = "Group")
+```
+
+**Questions**
+
+1. Where are the samples located?
+2. Are the two groups found in the same places, or are they geographically separated?
+3. Should we expect a difference in climate?
+
+# Extract climate for each sample location
+
+We will now use `location_slice()` in `pastclim` to extract climate values for the sample coordinates.
+
+We will extract both BIO1 and BIO12. BIO1 is the annual mean temperature, and BIO12 is the annual precipitation. You will focus on just one variable for the main comparison, depending on which scenario you chose.
+
+```{r extract-climate}
+climate_data <- location_slice(
+  x = samples,
+  coords = c("lon", "lat"),
+  time_bp = 0,
+  bio_variables = c("bio01", "bio12"),
+  dataset = "Example"
+)
+
+```
+
+We can now look at the temperature `bio01` and precipitation `bio12` for each sample location. Each row corresponds to one sample location.
+
+```{r check-extracted-climate}
+
+# Look at the climate values
+summary(climate_data$bio01)
+summary(climate_data$bio12)
+
+```
+
+
+**Questions**
+
+1. What is the minimum average temperature for all your data points?
+1. What is the median average precipitation for all your data points?
+
+Well done, you have just generated your own data by extracting climate values for your sample locations! You can now use these values to compare the two groups, in the same way as you have done in previous practicals.
+
+# Compare the two groups
+
+
+## Variables
+
+### Identify the following:
+
+Independent variable
+
+```
+ 
+```
+
+Dependent variable
+
+```
+ 
+```
+
+## Statistical analysis
+
+### Hypothesis
+
+Identify a null hypothesis and an alternative hypothesis for your chosen scenario
+
+```
+ 
+ 
+```
+
+### Plot your data
+
+Generate a plot that is appropriate for your data. Make sure you have appropriate labels for X and Y axis, a legend, caption, keys, all the elements.
+
+Write a suitable figure caption for your figure:
+
+```
+
+
+
+
+```
+
+### Identify and run the appropriate statistical test.
+
+Remember, you can use 
+Using the sample code available on Blackboard and example code available on the SENS R Support Blackboard page.
+ 
+What is the appropriate statistical test for your data? Why?
+
+```
+
+
+```
+#### Run your analyses!
+
+
+Use the example code from SENS R Support Blackboard page.
+
+### Results
+
+Where you able to reject your null hypothesis? What does this mean in terms of your chosen scenario? What are the implications of your results?
+
+#### Report the results
+
+Write a short paragraph summarising your results. Include the following information: test used, test statistic, p-value, and your conclusion.
+
+```
+
+
+
+
+
+
+```
+
+
+### Limitations?
+
+This exercise was designed to learn R, not to be a comprehensive ecological analysis. Can you think of potential problems with the analysis as you have done it now, and the limitations? Consider the following:
+
+- are the sample locations really independent? 
+- are the sample locations representative of the groups?
+- are there other factors that could explain the difference between the groups?
+
+
+### Future studies
+
+Suggest an additional set of measurements or observations that we could further test (a future study)
+ 
+<!--
+# REMOVE THIS
+
+```{r group-boxplot, fig.width=7, fig.height=5}
+boxplot(
+  climate_data$bio01 ~ climate_data$group,
+  xlab = "Group",
+  ylab = "BIO01",
+  main = paste("Comparison of BIO01 between groups"),
+  col = c("tomato","dodgerblue")
+)
+
+boxplot(
+  climate_data$bio12 ~ climate_data$group,
+  xlab = "Group",
+  ylab = "BIO12",
+  main = paste("Comparison of BIO12 between groups"),
+  col = c("tomato","dodgerblue")
+)
+```
+
+**Questions**
+
+1. Which group has the higher median?
+2. Which group has the greater spread of values?
+3. Do the boxes overlap?
+4. Are there any outliers?
+5. Based on the boxplot, do you think the groups differ? Explain your answer.
+
+# Statistical test: Wilcoxon rank-sum test
+
+A graph helps us describe the data, but we can also use a statistical test to assess whether the observed difference between the two groups is larger than we might expect from random variation alone.
+
+For this introductory exercise, we will use the **Wilcoxon rank-sum test** (also called the Mann–Whitney test). It compares the values in two independent groups without requiring the data to follow a normal distribution.
+
+We start with two hypotheses:
+
+- **Null hypothesis (H0):** The climate values do not tend to be higher in one group than the other.
+- **Alternative hypothesis (H1):** The climate values tend to differ between the two groups.
+
+```{r wilcoxon-test}
+
+# Run the Wilcoxon rank-sum test
+wilcox.test(bio01 ~ group,
+            data = climate_data)
+
+# Run the Wilcoxon rank-sum test
+wilcox.test(bio12 ~ group,
+            data = climate_data)
+
+```
+
+## Interpreting the result
+
+Look at the p-value in the test output.
+
+As a commonly used guide, a p-value below 0.05 is often described as statistically significant. This is not a measure of how large or ecologically important a difference is. You should interpret the test alongside the boxplot and the sample sizes.
+
+**Questions**
+
+1. What is the p-value?
+2. Is it below or above 0.05?
+3. Based on the test, what do you conclude about the two groups?
+4. Does the statistical test agree with what you saw in the boxplot?
+5. Does the result support your original prediction when you saw the map of the sample locations?
+
+**Important limitation:** This test assumes that the observations are independent. Locations that are close together may have similar climates and may not be independent. Differences between groups may also reflect where the samples were collected, sampling effort, habitat or other factors. A statistical difference does not show that climate caused a species or plantation type to occur in a particular place.
+
+<!--
+# Optional fun!
+
+The `Example` dataset contains several time slices. Repeat the climate extraction at 20,000 years BP (Before Present) and see if the results are different when we look at the same locations in the past. You can use the same code as above, but change the `time_bp` argument to -20000. 
+
+```{r extension}
+# Change the time slice to 10,000 years before present
+climate_20000BP <- location_slice(
+  x = samples,
+  coords = c("lon", "lat"),
+  time_bp = -20000,
+  bio_variables = c("bio01", "bio12"),
+  dataset = "Example"
+)
+
+head(climate_20000BP)
+```
+
+
+```{r group-boxplot-20k, fig.width=7, fig.height=5}
+boxplot(
+  climate_20000BP$bio01 ~ climate_20000BP$group,
+  xlab = "Group",
+  ylab = "BIO01",
+  main = paste("Comparison of BIO01 between groups 20,000 BP"),
+  col = c("tomato","dodgerblue")
+)
+```
+
+**Extension questions**
+
+1. Do the climate values at your sample locations differ between 20,000 years BP and the present-day reference period?
+2. Are the changes similar in both groups?
+3. What additional information would you need before drawing ecological conclusions about these changes?
+
+-->
