@@ -197,9 +197,16 @@ summary(climate_data$bio01)
 1. What is the minimum average temperature for all your data points?
 1. What is the median average precipitation for all your data points?
 
-Well done, you have just generated your own data by extracting climate values for your sample locations! You can now use these values to compare the two groups, in the same way as you have done in previous practicals. See the worksheet on Blackboard for further exercises.
+You can now use these values to compare the two groups, in the same way as you have done in previous practicals. See the worksheet on Blackboard for further exercises.
 
 
+# Next steps
+
+Go to [Blackboard](https://blackboard.bangor.ac.uk) and follow the rest of the instructions on the worksheet
+
+- plot data
+- perform statistical test
+- interpret results
 
  
 <!--
